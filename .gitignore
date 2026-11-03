@@ -1,0 +1,31 @@
+# Personal AI-tool and editor config stays local. Only shared files are tracked (see AGENTS.md).
+.claude/*
+!.claude/skills
+.agents/*
+!.agents/skills/
+.codex/
+.mcp.json
+CLAUDE.local.md
+AGENTS.override.md
+.cursor/
+.vscode/
+.idea/
+.zed/
+*.code-workspace
+.DS_Store
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+.venv/
+.python-version
+
+# Build and tool caches
+__pycache__/
+*.pyc
+.ruff_cache/
+.pytest_cache/
+node_modules/
+.next/
