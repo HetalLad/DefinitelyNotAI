@@ -24,7 +24,8 @@ Every change goes through these skills. Claude Code: `/name`. Codex: `$name`.
 4. `handoff`: when you stop before the task is done.
 5. `create-pr`: when the task is done. It runs `review` first.
 
-Never commit to `main` directly. Open draft PRs are the team's task board.
+`main` is protected: every change lands through a PR, and AI agents never merge.
+Open draft PRs are the team's task board.
 
 ## Code rules
 
