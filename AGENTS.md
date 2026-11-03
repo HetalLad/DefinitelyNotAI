@@ -27,6 +27,9 @@ Every change goes through these skills. Claude Code: `/name`. Codex: `$name`.
 `main` is protected: every change lands through a PR, and AI agents never merge.
 Open draft PRs are the team's task board.
 
+No AI attribution anywhere: no `Co-Authored-By` trailers in commits, no "Generated with"
+lines in PR descriptions, no AI credit comments in code.
+
 ## Code rules
 
 `review` checks every change against these rules. Write only the code the task needs.
