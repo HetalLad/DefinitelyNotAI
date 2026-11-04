@@ -3,7 +3,7 @@
 `quick_draft` yields the progress events the UI shows and returns a C2 draft for `respond`.
 """
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from datetime import date
 
 from askwri.answer.decline import decline_score
@@ -72,7 +72,7 @@ def quick_draft(request: dict, *, search: Search, client) -> Iterator[dict]:
 
     Filters set in the request are hard: every search keeps them. Filters the plan reads from
     the question are soft: if the first round finds no passage at `ASKWRI_DECLINE_SCORE`, the
-    retry drops them, broadens the query, and lists them in the draft's `relaxed` chips.
+    retry drops them, broadens the query, and names them in the `search-2` step's detail.
     Makes one `labeler` call to plan, one more to rewrite on a retry, and one `answerer` call
     to draft (skipped when no passage is strong enough to answer from).
     """
@@ -89,12 +89,11 @@ def quick_draft(request: dict, *, search: Search, client) -> Iterator[dict]:
     docs: set[str] = set()
     yield from _search_round("search-1", plan["queries"], filters, search, found, docs)
 
-    relaxed = []
     if not _strong(found.values()):
         query = _rewrite(question, plan["queries"], client)
         searched.append(query)
         relaxed = filter_chips(soft)
-        yield from _search_round("search-2", [query], hard, search, found, docs)
+        yield from _search_round("search-2", [query], hard, search, found, docs, relaxed)
 
     passages = sorted(found.values(), key=lambda p: p.score, reverse=True)[:DRAFT_PASSAGES]
     draft = {
@@ -105,7 +104,6 @@ def quick_draft(request: dict, *, search: Search, client) -> Iterator[dict]:
         "searched": searched,
         "seen": list(found.values()),
         "suggestions": [],
-        "relaxed": relaxed,
     }
     if not _strong(passages):
         return draft
@@ -202,9 +200,19 @@ def _rewrite(question: str, queries: list[str], client) -> str:
 
 
 def _search_round(
-    step_id: str, queries: list[str], filters: dict, search: Search, found: dict, docs: set
+    step_id: str,
+    queries: list[str],
+    filters: dict,
+    search: Search,
+    found: dict,
+    docs: set,
+    relaxed: Sequence[str] = (),
 ) -> Iterator[dict]:
-    """Run each query, merging results into `found` by chunk_id (higher score kept)."""
+    """Run each query, merging results into `found` by chunk_id (higher score kept).
+
+    `relaxed` holds the chips of filters this round dropped; the done step's detail names them
+    ("4 passages, without Since 2025") so the user sees the search was broadened.
+    """
     round_ids = set()
     for query in queries:
         yield _step(step_id, f"Searching: {query}", "now")
@@ -222,6 +230,8 @@ def _search_round(
                 }
     count = len(round_ids)
     detail = f"{count} passage{'' if count == 1 else 's'}"
+    if relaxed:
+        detail += f", without {' and '.join(relaxed)}"
     yield _step(step_id, f"Searching: {'; '.join(queries)}", "done", detail)
 
 

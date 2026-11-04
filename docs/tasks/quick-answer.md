@@ -76,8 +76,9 @@ WRI work. Also the verification, decline, finalize and streaming steps that Deep
 
 ## Handoff
 
-Done: every item, including the measurements (PR #43 body). `Answer.relaxed` is built in and
-proposed on #38 to #41; the C5 type in all four issues changes once the team agrees.
+Done: every item, including the measurements (PR #43 body). Filters the retry drops are named
+in the `search-2` step detail, which C5 already has; an `Answer.relaxed` field stays a proposal
+on #38 to #41 until the team agrees on it.
 
 Next: review. After #19 merges, rerun the measurements through `search_passages` instead of
 the rerank stand-in, and recalibrate `ASKWRI_DECLINE_SCORE` on the Dev 4 evaluation.

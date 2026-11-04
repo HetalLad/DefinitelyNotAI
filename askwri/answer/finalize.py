@@ -51,7 +51,6 @@ def finalize(draft: dict, verification: dict, request: dict, started_at: float) 
         "groundingCheck": verification["grounding_check"],
         "people": _people(cited),
         "suggestions": draft.get("suggestions", []),
-        "relaxed": draft.get("relaxed", []),
         "coverage": None,
         "report": _report(draft["report"], key_points, cited),
         "elapsedSeconds": round(time.monotonic() - started_at, 1),

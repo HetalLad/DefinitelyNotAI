@@ -107,7 +107,7 @@ def test_cited_answer_streams_steps_in_order_and_numbers_markers_by_first_use():
         PASSAGES[0].chunk_id,
         PASSAGES[2].chunk_id,
     ]
-    assert answer["relaxed"] == []
+    assert "relaxed" not in answer  # not in the C5 Answer until the four issues agree
     assert sum(1 for e in events if e["type"] in {"answer", "decline", "error"}) == 1
 
 
@@ -203,7 +203,14 @@ def test_weak_first_round_retries_with_ui_filters_only_and_reports_what_was_rela
         "verify",
     ]
     assert events[-1]["type"] == "answer"
-    assert events[-1]["answer"]["relaxed"] == ["Since 2025", "Type: issue brief"]
+    retry_done = next(
+        e for e in events if e["type"] == "step" and e["id"] == "search-2" and e["status"] == "done"
+    )
+    assert retry_done["detail"] == "1 passage, without Since 2025 and Type: issue brief"
+    first_done = next(
+        e for e in events if e["type"] == "step" and e["id"] == "search-1" and e["status"] == "done"
+    )
+    assert first_done["detail"] == "1 passage"
 
 
 def test_two_weak_rounds_decline_with_chips_and_related_documents_without_drafting():

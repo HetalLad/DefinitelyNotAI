@@ -137,8 +137,8 @@ evidence is weak, the passages don't answer the question, or fewer than half the
 survive, the answer is a decline that lists what was searched and the closest WRI work.
 
 Filters set in the request always apply. Filters read from the question ("since 2025") are
-dropped if the first search finds nothing strong enough, and the answer's `relaxed` field
-lists them.
+dropped if the first search finds nothing strong enough, and the retry's progress step names
+them ("4 passages, without Since 2025").
 
 ```sh
 uv run python -m askwri.answer "How fast is solar power growing?"          # search the index (#19)
