@@ -1,0 +1,30 @@
+[project]
+name = "askwri"
+version = "0.1.0"
+description = "AskWRI: answers and briefings from WRI publications, with a citation for every claim."
+requires-python = ">=3.12"
+dependencies = [
+    # Layout-aware PDF to Markdown (the former pymupdf4llm). AGPL-3.0; see issue #2.
+    "pymupdf==2.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+# PyMuPDF's SWIG bindings warn on import under Python 3.12; nothing to act on.
+filterwarnings = ["ignore:builtin type .* has no __module__ attribute:DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+extend-select = ["I", "UP", "B"]
