@@ -7,7 +7,9 @@ from pathlib import Path
 
 from askwri.ingest.audit import AuditResult, audit_chunks
 from askwri.ingest.chunks import Chunk, build_chunks
+from askwri.ingest.labels import DocumentLabels, chunk_label_fields, label_document
 from askwri.ingest.pdf import ParsedPdf, parse_pdf
+from askwri.ingest.wri_site import WriSite
 
 
 @dataclass(frozen=True)
@@ -16,19 +18,38 @@ class IngestResult:
 
     chunks: list[Chunk]
     audit: AuditResult
+    labels: DocumentLabels
+    doc_id: str
+    pdf_file: str  # the stored PDF a citation falls back to when there is no wri.org page
 
 
-def ingest_document(pdf_path: Path) -> IngestResult:
-    """Turn one PDF into chunks plus the audit result that decides whether they may be indexed."""
+def ingest_document(pdf_path: Path, site: WriSite | None = None, client=None) -> IngestResult:
+    """Turn one PDF into chunks, its labels, and the audit that gates indexing.
+
+    Labels come from the wri.org page, and from the labeler model (`client`) where there is none.
+    With no site, nothing is looked up; with no client, the model is never called and a document
+    without a page is labelled "no page".
+    """
     parsed = parse_pdf(pdf_path)
-    chunks = build_chunks(doc_id_for(pdf_path), _title(parsed, pdf_path), parsed.blocks)
+    title = _title(parsed, pdf_path)
+    doc_id = doc_id_for(pdf_path)
+    chunks = build_chunks(doc_id, title, parsed.blocks, parsed.printed_pages)
     audit = audit_chunks(pdf_path, chunks)
     unquotable = set(audit.unquotable)
+    labels = label_document(pdf_path, title, site, client)
     chunks = [
-        dataclasses.replace(chunk, quotable=False) if chunk.chunk_id in unquotable else chunk
+        dataclasses.replace(
+            chunk, quotable=chunk.chunk_id not in unquotable, **chunk_label_fields(labels)
+        )
         for chunk in chunks
     ]
-    return IngestResult(chunks=chunks, audit=audit)
+    return IngestResult(
+        chunks=chunks,
+        audit=audit,
+        labels=labels,
+        doc_id=doc_id,
+        pdf_file=pdf_path.name,
+    )
 
 
 def doc_id_for(pdf_path: Path) -> str:
