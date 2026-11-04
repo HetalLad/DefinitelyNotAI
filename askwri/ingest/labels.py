@@ -102,20 +102,16 @@ def catalog_row(doc_id: str, pdf_file: str, labels: DocumentLabels) -> dict:
     return {"doc_id": doc_id, "pdf_file": pdf_file, **asdict(labels)}
 
 
-def sidecar_attributes(labels: DocumentLabels) -> dict:
-    """The label fields a chunk's metadata sidecar carries for filtering.
-
-    Absent labels are left out, because Knowledge Bases metadata has no null.
-    """
-    attributes = {
+def chunk_label_fields(labels: DocumentLabels) -> dict:
+    """The label fields every chunk of the document carries, for filtering at search time."""
+    return {
         "label_source": labels.label_source,
         "link": labels.link,
         "year": int(labels.published[:4]) if labels.published else None,
         "topic": labels.topic,
         "wri_type": labels.wri_type,
-        "tags": list(labels.tags),
+        "tags": labels.tags,
     }
-    return {key: value for key, value in attributes.items() if value}
 
 
 def _front_text(pdf_path: Path) -> str:

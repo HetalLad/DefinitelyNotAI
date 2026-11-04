@@ -236,13 +236,23 @@ def test_the_sitemap_is_fetched_once_per_run(tmp_path):
     assert fake.requested.count(SITEMAP) == 1
 
 
-def test_ingest_writes_labels_into_the_sidecars_and_the_catalog(tmp_path):
+def test_ingest_puts_the_filter_labels_on_every_chunk_and_the_catalog_row(tmp_path):
     pdf = report_pdf(tmp_path / "Restoring Degraded Land.pdf")
 
     result = ingest_document(pdf, WriSite(web(wri_page())))
-    write_chunks(result.chunks, tmp_path / "out", result.labels)
+    write_chunks(result.chunks, tmp_path / "out")
     write_catalog([result], tmp_path / "out")
 
+    assert result.chunks
+    for chunk in result.chunks:
+        assert (chunk.topic, chunk.year, chunk.link, chunk.label_source, chunk.wri_type) == (
+            "Equity",
+            2023,
+            PAGE_URL,
+            "wri.org",
+            "Research",
+        )
+        assert chunk.tags == ("land restoration", "Equity")
     sidecar = next((tmp_path / "out").glob("*/*.metadata.json"))
     attributes = json.loads(sidecar.read_text())["metadataAttributes"]
     assert attributes["topic"] == "Equity"
@@ -265,9 +275,12 @@ def test_a_document_without_a_page_cites_its_pdf_and_records_why(tmp_path):
     pdf = report_pdf(tmp_path / "r.pdf", printed_doi=None)
 
     result = ingest_document(pdf, WriSite(web(sitemap_slugs=())))
-    write_chunks(result.chunks, tmp_path / "out", result.labels)
+    write_chunks(result.chunks, tmp_path / "out")
     write_catalog([result], tmp_path / "out")
 
+    assert {(c.label_source, c.link, c.topic, c.year) for c in result.chunks} == {
+        ("no page", None, None, None)
+    }
     sidecar = next((tmp_path / "out").glob("*/*.metadata.json"))
     attributes = json.loads(sidecar.read_text())["metadataAttributes"]
     assert attributes["label_source"] == "no page"

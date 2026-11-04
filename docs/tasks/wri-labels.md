@@ -24,8 +24,8 @@ resolves. Documents with no page cite the stored PDF, and the label source is re
       Equity), and an unmapped value fails loudly.
 - [ ] The audit checks that each link resolves; with no page, the citation falls back to the
       stored PDF and the label source is recorded.
-- [ ] One catalog row per document is produced, and the filterable fields go into each
-      chunk's sidecar.
+- [ ] One catalog row per document is produced, and the filterable fields are added to each
+      chunk record (scope update: #12 stores them as database columns).
 - [ ] Tests fake the HTTP fetches and cover the cited-DOI, date and topic cases.
 
 ## Handoff

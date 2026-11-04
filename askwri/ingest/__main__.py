@@ -7,14 +7,15 @@ from pathlib import Path
 
 from askwri.ingest.chunks import Chunk
 from askwri.ingest.document import IngestResult, ingest_document
-from askwri.ingest.labels import DocumentLabels, catalog_row, sidecar_attributes
+from askwri.ingest.labels import catalog_row
 from askwri.ingest.wri_site import WriSite
 
 
-def write_chunks(chunks: list[Chunk], out_dir: Path, labels: DocumentLabels) -> None:
+def write_chunks(chunks: list[Chunk], out_dir: Path) -> None:
     """Write each chunk as <doc_id>/<p..>.txt plus the .metadata.json sidecar Bedrock reads.
 
-    The document's filterable labels (topic, year, tags, link) go into every sidecar.
+    The document's filterable labels (topic, year, tags, link) go into every sidecar; a label
+    the document lacks is left out, because Knowledge Bases metadata has no null.
     """
     for chunk in chunks:
         doc_dir = out_dir / chunk.doc_id
@@ -29,8 +30,16 @@ def write_chunks(chunks: list[Chunk], out_dir: Path, labels: DocumentLabels) -> 
             "section": chunk.section,
             "kind": chunk.kind,
             "quotable": chunk.quotable,
-            **sidecar_attributes(labels),
         }
+        labelled = {
+            "label_source": chunk.label_source,
+            "link": chunk.link,
+            "year": chunk.year,
+            "topic": chunk.topic,
+            "wri_type": chunk.wri_type,
+            "tags": list(chunk.tags),
+        }
+        attributes |= {key: value for key, value in labelled.items() if value}
         path.with_name(f"{path.name}.metadata.json").write_text(
             json.dumps({"metadataAttributes": attributes}, ensure_ascii=False), encoding="utf-8"
         )
@@ -69,7 +78,7 @@ def main() -> int:
             for failure in result.audit.failures:
                 print(f"  {failure}", file=sys.stderr)
             continue
-        write_chunks(result.chunks, args.out, result.labels)
+        write_chunks(result.chunks, args.out)
         passed.append(result)
         print(
             f"{pdf.name}: {len(result.chunks)} chunks, "

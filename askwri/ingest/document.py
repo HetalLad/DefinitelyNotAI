@@ -7,7 +7,7 @@ from pathlib import Path
 
 from askwri.ingest.audit import AuditResult, audit_chunks
 from askwri.ingest.chunks import Chunk, build_chunks
-from askwri.ingest.labels import DocumentLabels, label_document
+from askwri.ingest.labels import DocumentLabels, chunk_label_fields, label_document
 from askwri.ingest.pdf import ParsedPdf, parse_pdf
 from askwri.ingest.wri_site import WriSite
 
@@ -34,14 +34,17 @@ def ingest_document(pdf_path: Path, site: WriSite | None = None) -> IngestResult
     chunks = build_chunks(doc_id, title, parsed.blocks)
     audit = audit_chunks(pdf_path, chunks)
     unquotable = set(audit.unquotable)
+    labels = label_document(pdf_path, title, site)
     chunks = [
-        dataclasses.replace(chunk, quotable=False) if chunk.chunk_id in unquotable else chunk
+        dataclasses.replace(
+            chunk, quotable=chunk.chunk_id not in unquotable, **chunk_label_fields(labels)
+        )
         for chunk in chunks
     ]
     return IngestResult(
         chunks=chunks,
         audit=audit,
-        labels=label_document(pdf_path, title, site),
+        labels=labels,
         doc_id=doc_id,
         pdf_file=pdf_path.name,
     )
