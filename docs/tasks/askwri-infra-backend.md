@@ -19,6 +19,9 @@ ingestion, the five gateway tools, the agent on AgentCore Runtime, the API, and 
 - [ ] Phase 2: a PDF uploaded to raw/ fills `documents` and `chunks` with page numbers,
       doc_id (URL, else DOI, else SHA-256), date_source and date_confidence, tags and
       embeddings. Figure and table pages are described inline by the vision model.
+      askwri-ingest has reserved concurrency 10 and a 900-second timeout. The largest sample
+      PDF is ingested first and its duration reported; at 12 minutes or more, stop and
+      decide whether to move ingestion to ECS Fargate.
 - [ ] Phase 3: an MCP client with a Cognito token lists the 5 tools on askwri-gateway, and
       search returns cited passages (hybrid vector + full-text, reranked).
 - [ ] Phase 4: askwri-agent-runtime returns cited answers in Quick answer and Deep research
@@ -34,6 +37,11 @@ ingestion, the five gateway tools, the agent on AgentCore Runtime, the API, and 
 
 - Follow the design doc where it disagrees with issues #2 and #10-13 (Terraform, own
   tables, Lambda ingestion, multilingual); those issues are to be edited later.
+- Ingestion is one Lambda per PDF, triggered by S3 events on raw/ (not the Fargate task of
+  #13). Reserved concurrency 10 keeps bulk uploads within Aurora's connection limit and
+  Bedrock's request limits; the 15-minute Lambda limit is checked on the largest PDF.
+- Lambdas sign in to Aurora with IAM database authentication as askwri_ingest or
+  askwri_tools; the askwri/db master secret is used only by the Data API.
 - Retrieval is plain SQL with psycopg, not LlamaIndex: it keeps the doc's schema.sql.
 - The agent loop is hand-written on `askwri.models.call_claude`, not Strands.
 - Figure and table pages are described inline in the ingestion Lambda, not by a Bedrock
