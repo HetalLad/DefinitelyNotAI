@@ -40,9 +40,9 @@ uv run pytest                             # run the tests
 uv run python -m askwri.ingest path/to/report.pdf --out chunks/
 ```
 
-For each PDF the command writes one `.txt` file per chunk, plus the `.metadata.json` sidecar
-that Bedrock Knowledge Bases reads, under `chunks/<doc_id>/`. Before anything is written,
-the citation audit checks every chunk against the PDF's own text layer:
+For each PDF the command writes one `.txt` file per chunk, plus a `.metadata.json` sidecar,
+under `chunks/<doc_id>/` (a stand-in until the chunks go to Aurora pgvector, #11). Before
+anything is written, the citation audit checks every chunk against the PDF's own text layer:
 
 - **Blocked:** a chunk that is empty, garbled, or has words that aren't on its page. Nothing
   is written for that PDF, and the command exits with an error.
@@ -52,6 +52,15 @@ the citation audit checks every chunk against the PDF's own text layer:
 - **Not quotable:** a chunk whose words are all on its page, but in a different order (for
   example diagram labels). It is written with `quotable: false`, so answers can cite its
   page but never quote it word for word.
+
+Chunks are sized for vector search: 400 to 2,000 characters (about 100 to 500 tokens), set by
+`MIN_CHUNK_CHARS` and `MAX_CHUNK_CHARS` in `askwri/ingest/chunks.py`, to be tuned against the
+evaluation questions. A chunk never crosses a heading. Short paragraphs merge with their
+neighbours in the same section; a paragraph over the maximum is cut at sentence boundaries
+(a single sentence is never cut, so one longer than the maximum stays whole). A section
+whose whole text is short stays one short chunk. Each chunk has `seq`, its position in the
+document's chunk order (1, 2, 3, ... with no gaps, the same on every rerun), so a short hit's
+neighbours can be fetched by `seq`.
 
 Each sidecar carries two kinds of page number. `pdf_page` and `pdf_page_end` are numbers (the
 position in the file, for opening the PDF at the right page). `printed_page` and
