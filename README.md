@@ -50,31 +50,34 @@ the citation audit checks every chunk against the PDF's own text layer:
   example diagram labels). It is written with `quotable: false`, so answers can cite its
   page but never quote it word for word.
 
-## Sort the corpus
+## Models
 
-Before ingesting, sort the pile of PDFs. Point the sorter at the folders and it prints what
-it would keep and what it would drop, with a reason for every dropped file:
+Every model call picks its model by role from the registry in `askwri/models.py`, so swapping
+a model is a one-line change:
+
+| Role | Model ID |
+|---|---|
+| `vision`, `answerer` | `global.anthropic.claude-sonnet-5-5` |
+| `labeler` | `global.anthropic.claude-haiku-5-5` |
+| `embedder` | `amazon.titan-embed-text-v2:0` |
+| `reranker` | `amazon.rerank-v1:0` |
+
+Region is **us-west-2**: set `AWS_DEFAULT_REGION=us-west-2` (or `AWS_REGION`). Claude is
+called through the Anthropic SDK's `AnthropicBedrock` client on the `bedrock-runtime`
+endpoint, signed (SigV4) with credentials from the standard AWS chain: environment
+variables, `AWS_PROFILE`, or the task role. (The newer `bedrock-mantle` endpoint and
+`AnthropicBedrockMantle` client are not used: AWS lists these two models on Mantle only in
+GovCloud.) Calls need Bedrock model access for both Claude models in the account.
 
 ```sh
-uv run python -m askwri.ingest.sort 2024_publications 2025_publications 2026_publications
+uv run python -m askwri.models smoke   # one tiny call per Claude role: PASS or the exact error
 ```
 
-- **Duplicate:** a file with exactly the same bytes as another. The copy without an `_0`
-  suffix and with the shortest name is kept.
-- **Not English:** the first five pages are read with a stopword-ratio test. Files in
-  another language are dropped, and the report says whether an English twin with a
-  matching file name was kept. A file with too little text to judge is kept, as `unknown`.
-- **Older version:** files whose names are the same apart from a version marker
-  (`version-2`, `(Version 2.1)`, `v5`) or a copy suffix (`_0`, `_1`) form one family. The
-  highest version wins, then the later year folder, then the higher suffix. The kept
-  document lists the files it replaces.
-
-Each kept document is typed: research report, working paper, issue brief, technical note,
-newsletter, RFP, dataset documentation, annual report or other. The file name decides
-first, then a capitalised label on the first pages such as `WORKING PAPER`.
-
-Two kept documents with the same `doc_id` stop the sort with an error, because they would
-share chunk IDs. Rename one of the files.
+The smoke test sends an image to `vision`, asks `labeler` for structured (JSON Schema)
+output, and asks `answerer` a plain question. In code, use `call_claude` (text) or
+`call_claude_json` (structured). Both take the client as their first argument, so tests pass
+`tests/fake_claude.FakeClaude` and never touch the network. A refusal, a truncated reply or
+an API error raises `ModelError` naming the document.
 
 ## The rules
 
