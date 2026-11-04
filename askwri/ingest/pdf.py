@@ -69,8 +69,10 @@ def region_text(
 
     The layout Markdown sometimes misplaces ligatures ("frst", "tarifs") or interleaves a pull
     quote into a paragraph. The text layer read from the same region has the words verbatim.
-    It wins when it is a verbatim run of the page and the layout text is not, or when the
-    layout text has words that are not on the page at all.
+    It wins only if it is complete (at least 95% of the layout text's length, so a region
+    that clips words at its edge can't drop them) and either it is a verbatim run of the page
+    or the layout text has words that are not on the page at all. Otherwise the layout text
+    stays, and the audit decides.
     """
     page_run = comparable(page_text)
     if comparable(layout_text) in page_run:
@@ -78,9 +80,7 @@ def region_text(
     region = pymupdf.Rect(bbox) + (-2, -2, 2, 2)  # layout boxes can clip edge characters
     layer_text = plain_text(page.get_text("text", clip=region, flags=pymupdf.TEXT_DEHYPHENATE))
     complete = len(comparable(layer_text)) >= 0.95 * len(comparable(layout_text))
-    if complete and comparable(layer_text) in page_run:
-        return layer_text
-    if missing_words(layout_text, page_text):
+    if complete and (comparable(layer_text) in page_run or missing_words(layout_text, page_text)):
         return layer_text
     return layout_text
 

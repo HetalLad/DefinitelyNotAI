@@ -27,6 +27,14 @@ def test_replaces_scrambled_ligatures_with_the_text_layer(page):
     assert region_text(page, page.get_text(), (50, 50, 550, 120), scrambled) == SENTENCE
 
 
+def test_never_swaps_in_text_layer_that_lost_words_at_the_region_edge(page):
+    scrambled = "Catch up on the frst i and second installments of the artcle i on tarifs."
+
+    # The clipped region holds only part of the sentence: keep the layout text and let the
+    # audit report the scrambled words, rather than silently dropping the rest.
+    assert region_text(page, page.get_text(), (50, 50, 200, 70), scrambled) == scrambled
+
+
 def test_keeps_reordered_layout_text_when_the_text_layer_is_no_better(page):
     reordered = "on tariffs. Catch up on the first and second installments of the article"
 

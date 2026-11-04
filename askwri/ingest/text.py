@@ -11,6 +11,7 @@ def comparable(text: str) -> str:
 
 
 def words(text: str) -> list[str]:
+    """The text's words, case-folded with ligatures expanded, without punctuation."""
     return re.findall(r"[^\W_]+", unicodedata.normalize("NFKC", text).casefold())
 
 

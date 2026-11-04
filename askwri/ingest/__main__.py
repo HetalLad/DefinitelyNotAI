@@ -31,6 +31,10 @@ def write_chunks(chunks: list[Chunk], out_dir: Path) -> None:
 
 
 def main() -> int:
+    """Ingest each PDF and write its chunks; a PDF that fails the audit writes nothing.
+
+    Returns the exit code: 1 if any PDF failed the audit, else 0.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("pdfs", nargs="+", type=Path, help="PDF files to ingest")
     parser.add_argument("--out", type=Path, required=True, help="folder for chunk files")

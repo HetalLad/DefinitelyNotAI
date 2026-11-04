@@ -12,6 +12,8 @@ from askwri.ingest.pdf import ParsedPdf, parse_pdf
 
 @dataclass(frozen=True)
 class IngestResult:
+    """One PDF's chunks, marked quotable or not, and the audit that decides if they're indexed."""
+
     chunks: list[Chunk]
     audit: AuditResult
 
