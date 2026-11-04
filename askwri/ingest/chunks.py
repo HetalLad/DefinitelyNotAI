@@ -22,6 +22,13 @@ class Chunk:
     kind: str
     text: str  # passage text; paragraphs separated by blank lines
     quotable: bool = True  # False when the audit found the words re-ordered against the PDF
+    # The document's labels, copied onto every chunk so retrieval can filter on them.
+    label_source: str = "no page"  # "wri.org", or "no page" (the citation then cites the PDF)
+    link: str | None = None
+    year: int | None = None
+    topic: str | None = None
+    wri_type: str | None = None
+    tags: tuple[str, ...] = ()
 
     @property
     def address(self) -> str:
