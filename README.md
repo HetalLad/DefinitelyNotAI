@@ -57,8 +57,37 @@ title against the wri.org sitemap. A page is used only if it answers 200 and its
 matches. From that page the topic (mapped onto the 11 topics), WRI type, authors, publication
 date and tags are read, and the topic, year, type, tags and link are copied onto every
 chunk record (and its sidecar) next to `label_source`. With no page, `label_source` is
-`no page` and a citation falls back to the stored PDF. `chunks/catalog.json` holds one row per document with its
-labels, link, DOI and label source.
+`no page` and a citation falls back to the stored PDF. `chunks/catalog.json` holds one row
+per document with its labels, link, DOI and label source.
+
+## Models
+
+Every model call picks its model by role from the registry in `askwri/models.py`, so swapping
+a model is a one-line change:
+
+| Role | Model ID |
+|---|---|
+| `vision`, `answerer` | `global.anthropic.claude-sonnet-5-5` |
+| `labeler` | `global.anthropic.claude-haiku-5-5` |
+| `embedder` | `amazon.titan-embed-text-v2:0` |
+| `reranker` | `amazon.rerank-v1:0` |
+
+Region is **us-west-2**: set `AWS_DEFAULT_REGION=us-west-2` (or `AWS_REGION`). Claude is
+called through the Anthropic SDK's `AnthropicBedrock` client on the `bedrock-runtime`
+endpoint, signed (SigV4) with credentials from the standard AWS chain: environment
+variables, `AWS_PROFILE`, or the task role. (The newer `bedrock-mantle` endpoint and
+`AnthropicBedrockMantle` client are not used: AWS lists these two models on Mantle only in
+GovCloud.) Calls need Bedrock model access for both Claude models in the account.
+
+```sh
+uv run python -m askwri.models smoke   # one tiny call per Claude role: PASS or the exact error
+```
+
+The smoke test sends an image to `vision`, asks `labeler` for structured (JSON Schema)
+output, and asks `answerer` a plain question. In code, use `call_claude` (text) or
+`call_claude_json` (structured). Both take the client as their first argument, so tests pass
+`tests/fake_claude.FakeClaude` and never touch the network. A refusal, a truncated reply or
+an API error raises `ModelError` naming the document.
 
 ## The rules
 
