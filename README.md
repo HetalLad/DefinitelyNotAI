@@ -50,6 +50,35 @@ the citation audit checks every chunk against the PDF's own text layer:
   example diagram labels). It is written with `quotable: false`, so answers can cite its
   page but never quote it word for word.
 
+## Models
+
+Every model call picks its model by role from the registry in `askwri/models.py`, so swapping
+a model is a one-line change:
+
+| Role | Model ID |
+|---|---|
+| `vision`, `answerer` | `global.anthropic.claude-sonnet-5-5` |
+| `labeler` | `global.anthropic.claude-haiku-5-5` |
+| `embedder` | `amazon.titan-embed-text-v2:0` |
+| `reranker` | `amazon.rerank-v1:0` |
+
+Region is **us-west-2**: set `AWS_DEFAULT_REGION=us-west-2` (or `AWS_REGION`). Claude is
+called through the Anthropic SDK's `AnthropicBedrock` client on the `bedrock-runtime`
+endpoint, signed (SigV4) with credentials from the standard AWS chain: environment
+variables, `AWS_PROFILE`, or the task role. (The newer `bedrock-mantle` endpoint and
+`AnthropicBedrockMantle` client are not used: AWS lists these two models on Mantle only in
+GovCloud.) Calls need Bedrock model access for both Claude models in the account.
+
+```sh
+uv run python -m askwri.models smoke   # one tiny call per Claude role: PASS or the exact error
+```
+
+The smoke test sends an image to `vision`, asks `labeler` for structured (JSON Schema)
+output, and asks `answerer` a plain question. In code, use `call_claude` (text) or
+`call_claude_json` (structured). Both take the client as their first argument, so tests pass
+`tests/fake_claude.FakeClaude` and never touch the network. A refusal, a truncated reply or
+an API error raises `ModelError` naming the document.
+
 ## The rules
 
 - `main` is protected, so every change goes in through a pull request.
