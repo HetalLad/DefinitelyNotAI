@@ -26,7 +26,6 @@ MODEL_REPLY = {
     "topic": "Freshwater",
     "countries": ["Kenya"],
     "summary": "WRI seeks a consultant to model the Tana basin's hydrology.",
-    "country": "Kenya",
     "deadline": "2025-04-30",
 }
 
@@ -97,26 +96,27 @@ def test_the_text_sent_to_the_model_is_capped(tmp_path):
     assert "Closing words." not in prompt
 
 
-def test_an_rfp_also_gets_a_country_and_a_deadline(tmp_path):
+def test_an_rfp_also_gets_a_deadline_and_its_country_in_countries(tmp_path):
     pdf = pdf_with_text(tmp_path / "rfp-tana-basin.pdf", COVER)
     client = FakeClaude(reply())
 
     labels = label_document(pdf, "rfp-tana-basin", WriSite(web()), client)
 
-    assert (labels.rfp_country, labels.deadline) == ("Kenya", "2025-04-30")
+    assert (labels.countries, labels.deadline) == (("Kenya",), "2025-04-30")
     schema = client.requests[0]["output_config"]["format"]["schema"]
-    assert {"country", "deadline"} <= schema["properties"].keys()
+    assert "deadline" in schema["properties"]
+    assert "country" not in schema["properties"]
 
 
-def test_other_documents_are_not_asked_for_a_country_or_deadline(tmp_path):
+def test_other_documents_are_not_asked_for_a_deadline(tmp_path):
     pdf = pdf_with_text(tmp_path / "newsletter-march.pdf", "Our March newsletter on rivers.")
     client = FakeClaude(reply(doc_type="newsletter"))
 
     labels = label_document(pdf, "newsletter-march", WriSite(web()), client)
 
     schema = client.requests[0]["output_config"]["format"]["schema"]
-    assert not {"country", "deadline"} & schema["properties"].keys()
-    assert (labels.rfp_country, labels.deadline) == (None, None)
+    assert "deadline" not in schema["properties"]
+    assert labels.deadline is None
 
 
 def test_the_topic_is_limited_to_the_eleven_or_none(tmp_path):
@@ -265,5 +265,6 @@ def test_ingest_records_the_model_as_the_source_in_the_catalog_and_on_every_chun
         "Freshwater",
         "model",
     )
-    assert (row["doc_type"], row["rfp_country"], row["deadline"]) == ("RFP", "Kenya", "2025-04-30")
+    assert (row["doc_type"], row["deadline"]) == ("RFP", "2025-04-30")
+    assert "rfp_country" not in row
     assert (row["countries"], row["summary"]) == (["Kenya"], MODEL_REPLY["summary"])

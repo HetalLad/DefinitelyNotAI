@@ -60,6 +60,21 @@ def write_catalog(results: list[IngestResult], out_dir: Path) -> None:
     )
 
 
+class _ClientOnFirstUse:
+    """The Bedrock Claude client, created the first time a document needs the labeler.
+
+    A run where every document has a wri.org page then needs no AWS credentials or region.
+    """
+
+    def __init__(self):
+        self._client = None
+
+    def __getattr__(self, name):
+        if self._client is None:
+            self._client = claude_client()
+        return getattr(self._client, name)
+
+
 def main() -> int:
     """Ingest each PDF and write its chunks; a PDF that fails the audit writes nothing.
 
@@ -71,7 +86,7 @@ def main() -> int:
     args = parser.parse_args()
 
     site = WriSite()
-    client = claude_client()
+    client = _ClientOnFirstUse()
     failed = False
     passed: list[IngestResult] = []
     for pdf in args.pdfs:

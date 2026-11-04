@@ -45,7 +45,6 @@ class DocumentLabels:
     doc_type: str | None  # the labeler's reading of the type; wri.org documents use wri_type
     countries: tuple[str, ...]  # from the labeler
     summary: str | None  # from the labeler
-    rfp_country: str | None  # RFPs the labeler read
     deadline: str | None  # RFPs the labeler read, ISO date
 
 
@@ -139,7 +138,6 @@ def _no_page_labels(title: str, doi: str | None) -> DocumentLabels:
         doc_type=None,
         countries=(),
         summary=None,
-        rfp_country=None,
         deadline=None,
     )
 
@@ -159,7 +157,6 @@ def _model_labels(
         doc_type=read.doc_type,
         countries=read.countries,
         summary=read.summary,
-        rfp_country=read.rfp_country,
         deadline=read.deadline,
     )
 

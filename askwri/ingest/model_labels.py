@@ -33,7 +33,6 @@ LABEL_PROPERTIES = {
     "summary": {"type": "string", "description": "One or two sentences"},
 }
 RFP_PROPERTIES = {
-    "country": {"type": "string", "description": "Country the work is for, or empty"},
     "deadline": {"type": "string", "description": "Proposal deadline as YYYY-MM-DD, or empty"},
 }
 TOPIC_PROMPT = (
@@ -58,14 +57,13 @@ class ModelLabels:
     topic: str  # one of TOPICS, or "none"
     countries: tuple[str, ...]
     summary: str
-    rfp_country: str | None  # RFPs only
     deadline: str | None  # RFPs only, ISO date
 
 
 def label_from_text(client, document: str, text: str, is_rfp: bool) -> ModelLabels:
     """Ask the labeler for a document's labels, from the start of its text only.
 
-    An RFP is also asked for its country and proposal deadline. Raises ModelError if the call
+    An RFP is also asked for its proposal deadline; its country goes in `countries`. Raises ModelError if the call
     fails or is refused, and ValueError if the topic is not one of the 11 or "none".
     """
     properties = LABEL_PROPERTIES | (RFP_PROPERTIES if is_rfp else {})
@@ -77,7 +75,6 @@ def label_from_text(client, document: str, text: str, is_rfp: bool) -> ModelLabe
         topic=_checked_topic(document, labels["topic"]),
         countries=tuple(labels["countries"]),
         summary=labels["summary"],
-        rfp_country=(labels["country"] or None) if is_rfp else None,
         deadline=_iso_date(labels["deadline"]) if is_rfp else None,
     )
 

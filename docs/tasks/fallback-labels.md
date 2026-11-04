@@ -28,7 +28,7 @@ topic can only be one of WRI's 11 topics or `none`.
 
 ## Notes
 
-- RFPs get `rfp_country` and `deadline` next to `countries`; every document the model labels
+- RFPs get a `deadline`; their country goes in `countries` (no separate field). Every document the model labels
   also gets `doc_type`, `summary` and `topic_source` in the catalog row.
 - A page that has labels but no usable topic keeps `label_source` = `wri.org`; the catalog's
   `topic_source` = `model` says the topic is the model's.

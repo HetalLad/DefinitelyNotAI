@@ -79,12 +79,14 @@ first pages as text and returns structured output, with the topic limited to the
 `none` (any other value fails the document). It never overwrites a label wri.org has.
 
 - **No page:** the model gives the title, date, document type, topic, countries and a short
-  summary; an RFP also gets `rfp_country` and `deadline`. `label_source` is `model`.
+  summary; an RFP also gets its `deadline` (its country is in `countries`). `label_source` is
+  `model`.
 - **Page without a usable topic:** the model gives only the topic. `label_source` stays
   `wri.org`, and the catalog's `topic_source` is `model`.
 
-Ingesting therefore needs Bedrock access to the `labeler` model and a region (`AWS_DEFAULT_REGION`,
-see Models). A refused or failed model call fails that document with an error naming it.
+The Bedrock client is created only when a document first needs the model, so a run where every
+document has a wri.org page needs no AWS setup. Otherwise it needs Bedrock access to the `labeler`
+model and a region (`AWS_DEFAULT_REGION`, see Models). A refused or failed model call fails that document with an error naming it.
 
 ## Models
 
