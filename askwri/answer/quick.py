@@ -158,7 +158,9 @@ def _plan(question: str, client) -> dict:
         "You plan searches over a keyword and meaning index of World Resources Institute (WRI) "
         "publications, which are in English.\n"
         f"Write 1 or 2 short English search queries for the question, whatever language it is "
-        f'asked in. Set a filter only when the question states it outright ("since 2025" is '
+        f'asked in. Queries name the subject only: every passage is from WRI, so leave out "WRI", '
+        f'"report", "assessment" and years. Set a filter only when the question states it '
+        f'outright ("since 2025" is '
         f'year_from 2025, "about forests" is topic Forests); otherwise null. Today is '
         f"{date.today().isoformat()}.\n{UNTRUSTED}Question: {question}"
     )
@@ -176,7 +178,11 @@ def _plan(question: str, client) -> dict:
 
 
 def _canonical(value: str | None, allowed) -> str | None:
-    """The allowed value matching `value` ignoring case: structured output may change case."""
+    """The allowed value matching `value` ignoring case.
+
+    Structured output doesn't guarantee the case of enum values ("Enum value casing" in
+    Anthropic's structured outputs docs), so "forests" must still become "Forests".
+    """
     if value is None:
         return None
     return next((name for name in allowed if name.casefold() == value.casefold()), None)
@@ -233,6 +239,8 @@ def _draft(question: str, passages: list, client) -> dict:
         "- Every sentence states one claim and lists in `cites` the numbers of the passages "
         "that support it. Never write [n] markers in the text.\n"
         "- Use only what the passages say. Copy every number exactly as a passage writes it.\n"
+        "- The header line of each passage (number, title, year, section, page) is for "
+        "citing only: never use a title, year or page number from it in a sentence.\n"
         '- Quote only from passages marked "Quotable: yes", word for word, in quotation marks. '
         'Never quote a passage marked "Quotable: no"; you may still cite it.\n'
         "- If the passages do not answer the question, set `answerable` to false and leave "

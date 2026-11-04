@@ -1,3 +1,5 @@
+"""The decline rule: which reason applies first, and what the decline event lists."""
+
 from askwri.answer.decline import MESSAGES, decline_event, decline_reason
 from tests.answer_fakes import passage
 

@@ -19,6 +19,10 @@ from askwri.models import claude_client
 
 
 def main() -> int:
+    """Run one question and print its events; exit 1 if the run ends with an `error` event.
+
+    Calls Claude on Bedrock, and the Guardrails check when `ASKWRI_GUARDRAIL_ID` is set.
+    """
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("question")
     parser.add_argument(

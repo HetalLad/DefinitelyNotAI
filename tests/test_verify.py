@@ -1,3 +1,5 @@
+"""Claim verification: each rule drops the right sentence, with a fake grounding check."""
+
 from decimal import Decimal
 
 import pytest
@@ -10,6 +12,7 @@ from askwri.answer.verify import (
     QUOTE_NOT_QUOTABLE,
     grounding_score_from,
     numbers,
+    passage_numbers,
     verify,
 )
 from tests.answer_fakes import FakeGrounding, passage
@@ -82,6 +85,20 @@ def test_a_decimal_never_matches_the_same_digits_without_the_point():
         "q", {"passages": passages, "paragraphs": [[sentence("Up 3.5%.", 1)]]}, grounding=None
     )
     assert result["dropped"] == [{"text": "Up 3.5%.", "reason": NUMBER_NOT_IN_SOURCE}]
+
+
+def test_footnote_marker_glued_to_a_number_does_not_drop_a_correct_sentence():
+    # Ingest keeps superscript footnote 12 after "2030." as "2030.12".
+    passages = [passage(1, text="Coal must be phased out globally by 2030.12 Gas follows.")]
+    d = {"passages": passages, "paragraphs": [[sentence("Coal must go by 2030.", 1)]]}
+    assert verify("q", d, grounding=None)["dropped"] == []
+
+
+def test_footnote_reading_applies_only_at_a_sentence_end():
+    assert passage_numbers("by 2030.12") == {Decimal("2030.12"), Decimal(2030)}
+    assert passage_numbers("by 2030.12 Gas") == {Decimal("2030.12"), Decimal(2030)}
+    assert passage_numbers("up 3.5 percent") == {Decimal("3.5")}
+    assert passage_numbers("from 4,000,000.5 people") == {Decimal("4000000.5")}
 
 
 def test_percentages_and_numbers_written_as_words_are_handled():

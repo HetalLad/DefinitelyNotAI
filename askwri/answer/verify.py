@@ -23,6 +23,8 @@ Grounding = Callable[[str, str, str], float]
 QUOTE = re.compile(r"“([^”]+)”|\"([^\"]+)\"")
 MIN_QUOTE_WORDS = 4
 NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
+# After a footnote marker: the end of the text, or a space and then no lowercase letter.
+SENTENCE_END = re.compile(r"\s*$|\s+[^\sa-z]")
 # The default Guardrails quota is 106 text units per second; 4 calls in flight stay under it.
 GROUNDING_WORKERS = 4
 # ApplyGuardrail rejects a query longer than 1,000 characters.
@@ -94,8 +96,25 @@ def _quote_problem(text: str, cited: list) -> str | None:
 
 
 def _number_problem(text: str, cited: list) -> str | None:
-    in_sources = set().union(*(numbers(p.text) for p in cited))
+    in_sources = set().union(*(passage_numbers(p.text) for p in cited))
     return NUMBER_NOT_IN_SOURCE if numbers(text) - in_sources else None
+
+
+def passage_numbers(text: str) -> set[Decimal]:
+    """`numbers(text)`, plus each number read without a footnote marker glued to its end.
+
+    Ingest keeps superscript footnote numbers attached to the word before them, so "by 2030"
+    with footnote 12 reads "by 2030.12". When the last `.` or `,` part of a number ends a
+    sentence (end of text, or a space and then anything but a lowercase letter), the number
+    before it counts too. A real decimal mid-sentence ("3.5 percent") gets no extra reading.
+    Only the passage side gets this, so it can keep a sentence but never drop one.
+    """
+    values = numbers(text)
+    for match in NUMBER.finditer(text):
+        before_marker = re.fullmatch(r"(.+)[.,]\d+", match.group())
+        if before_marker and SENTENCE_END.match(text, match.end()):
+            values.add(_value(before_marker.group(1)))
+    return values
 
 
 def numbers(text: str) -> set[Decimal]:

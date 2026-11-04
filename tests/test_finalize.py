@@ -1,3 +1,5 @@
+"""The answer event: marker renumbering, sources, people, builtFrom and the decline handoff."""
+
 import time
 
 from askwri.answer.finalize import built_from, respond

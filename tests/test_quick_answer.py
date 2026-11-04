@@ -1,3 +1,6 @@
+"""Quick answer runs end to end on FakeClaude and a fake search: events, retries, declines,
+pings, errors and payload validation."""
+
 import json
 import time
 
@@ -137,7 +140,7 @@ def test_results_merge_by_chunk_id_keeping_the_higher_score_and_the_best_eight_g
 
 def test_request_filters_win_over_planned_ones_and_become_chips():
     client = FakeClaude(
-        plan("solar", year_from=2025, topic="forests"),  # case differs from TOPICS
+        plan("solar", year_from=2025, topic="Forests"),
         drafted([sentence("Solar costs fell by half.", 1)]),
     )
     search = FakeSearch([PASSAGES[1]])
@@ -146,6 +149,38 @@ def test_request_filters_win_over_planned_ones_and_become_chips():
     assert search.calls == [
         ("solar", {"year_from": 2025, "topic": "Energy", "doc_type": "working paper"})
     ]
+
+
+def test_planned_topic_and_doc_type_are_matched_to_the_lists_ignoring_case():
+    client = FakeClaude(
+        plan("mangroves", topic="forests", doc_type="Working Paper"),
+        drafted([sentence("Solar costs fell by half.", 1)]),
+    )
+    search = FakeSearch([PASSAGES[1]])
+    run(client, search)
+    assert search.calls == [("mangroves", {"topic": "Forests", "doc_type": "working paper"})]
+
+
+def test_an_answer_costs_two_model_calls_and_a_retry_one_more():
+    # Turnaround budget: plan + draft, plus one rewrite only when the first round is weak.
+    answered = FakeClaude(plan("solar", "solar capacity"), drafted([sentence("Fine.", 1)]))
+    search = FakeSearch(PASSAGES, PASSAGES)
+    run(answered, search)
+    assert (len(answered.requests), len(search.calls)) == (2, 2)
+
+    retried = FakeClaude(
+        plan("lithium"), json.dumps({"query": "minerals"}), drafted([sentence("Fine.", 1)])
+    )
+    search = FakeSearch([passage(9, score=0.1)], PASSAGES)
+    run(retried, search)
+    assert (len(retried.requests), len(search.calls)) == (3, 2)
+
+
+def test_draft_prompt_keeps_passage_headers_out_of_sentences():
+    client = FakeClaude(plan("solar"), drafted([sentence("Solar costs fell by half.", 1)]))
+    run(client, FakeSearch([PASSAGES[1]]))
+    prompt = client.requests[1]["messages"][0]["content"][-1]["text"]
+    assert "never use a title, year or page number from it" in prompt
 
 
 def test_weak_first_round_retries_with_ui_filters_only_and_reports_what_was_relaxed():
