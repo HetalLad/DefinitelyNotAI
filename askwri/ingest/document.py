@@ -23,10 +23,12 @@ class IngestResult:
     pdf_file: str  # the stored PDF a citation falls back to when there is no wri.org page
 
 
-def ingest_document(pdf_path: Path, site: WriSite | None = None) -> IngestResult:
-    """Turn one PDF into chunks, its wri.org labels, and the audit that gates indexing.
+def ingest_document(pdf_path: Path, site: WriSite | None = None, client=None) -> IngestResult:
+    """Turn one PDF into chunks, its labels, and the audit that gates indexing.
 
-    With no site, nothing is looked up and the labels say "no page".
+    Labels come from the wri.org page, and from the labeler model (`client`) where there is none.
+    With no site, nothing is looked up; with no client, the model is never called and a document
+    without a page is labelled "no page".
     """
     parsed = parse_pdf(pdf_path)
     title = _title(parsed, pdf_path)
@@ -34,7 +36,7 @@ def ingest_document(pdf_path: Path, site: WriSite | None = None) -> IngestResult
     chunks = build_chunks(doc_id, title, parsed.blocks, parsed.printed_pages)
     audit = audit_chunks(pdf_path, chunks)
     unquotable = set(audit.unquotable)
-    labels = label_document(pdf_path, title, site)
+    labels = label_document(pdf_path, title, site, client)
     chunks = [
         dataclasses.replace(
             chunk, quotable=chunk.chunk_id not in unquotable, **chunk_label_fields(labels)

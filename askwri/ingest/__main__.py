@@ -9,6 +9,7 @@ from askwri.ingest.chunks import Chunk
 from askwri.ingest.document import IngestResult, ingest_document
 from askwri.ingest.labels import catalog_row
 from askwri.ingest.wri_site import WriSite
+from askwri.models import claude_client
 
 
 def write_chunks(chunks: list[Chunk], out_dir: Path) -> None:
@@ -60,6 +61,21 @@ def write_catalog(results: list[IngestResult], out_dir: Path) -> None:
     )
 
 
+class _ClientOnFirstUse:
+    """The Bedrock Claude client, created the first time a document needs the labeler.
+
+    A run where every document has a wri.org page then needs no AWS credentials or region.
+    """
+
+    def __init__(self):
+        self._client = None
+
+    def __getattr__(self, name):
+        if self._client is None:
+            self._client = claude_client()
+        return getattr(self._client, name)
+
+
 def main() -> int:
     """Ingest each PDF and write its chunks; a PDF that fails the audit writes nothing.
 
@@ -71,10 +87,11 @@ def main() -> int:
     args = parser.parse_args()
 
     site = WriSite()
+    client = _ClientOnFirstUse()
     failed = False
     passed: list[IngestResult] = []
     for pdf in args.pdfs:
-        result = ingest_document(pdf, site)
+        result = ingest_document(pdf, site, client)
         for page in result.audit.pages_without_text:
             print(f"{pdf.name}: page {page} has no text layer", file=sys.stderr)
         if not result.audit.passed:
