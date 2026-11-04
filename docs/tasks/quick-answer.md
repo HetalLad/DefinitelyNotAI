@@ -1,7 +1,7 @@
 # Quick answer: cited answers, claim verification and the decline
 
 Owner: HetalLad
-Status: in-progress
+Status: in-review
 
 ## Goal
 
@@ -71,14 +71,13 @@ WRI work. Also the verification, decline, finalize and streaming steps that Deep
 ### Tests and measurements
 
 - [x] Tests from #38 pass with FakeClaude, a fake search and a fake grounding check, no network.
-- [ ] The PR body reports, for 5 real questions: time to answer, claims verified out of total,
+- [x] The PR body reports, for 5 real questions: time to answer, claims verified out of total,
       drops per rule, and Guardrails latency.
 
 ## Handoff
 
-Done: everything except the measurements. `Answer.relaxed` (soft filters the retry dropped) is
-built in and proposed on #38 to #41; the C5 type in all four issues changes once the team agrees.
+Done: every item, including the measurements (PR #43 body). `Answer.relaxed` is built in and
+proposed on #38 to #41; the C5 type in all four issues changes once the team agrees.
 
-Next: the 5-question measurement run. It needs real chunks (#19's search, or `--passages` built
-from `python -m askwri.ingest` output plus rerank scores) and a guardrail for the grounding
-check (`ASKWRI_GUARDRAIL_ID`, `ASKWRI_GUARDRAIL_VERSION`), in the team account.
+Next: review. After #19 merges, rerun the measurements through `search_passages` instead of
+the rerank stand-in, and recalibrate `ASKWRI_DECLINE_SCORE` on the Dev 4 evaluation.

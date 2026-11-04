@@ -226,8 +226,10 @@ def _strong(passages) -> bool:
 def _draft(question: str, passages: list, client) -> dict:
     numbered = "\n\n".join(_passage_block(n, p) for n, p in enumerate(passages, start=1))
     prompt = (
-        "Answer the question from the numbered WRI passages below, in English, in 2 to 6 "
-        "sentences grouped into 1 to 3 paragraphs.\n"
+        "Answer the question from the numbered WRI passages below in 2 to 6 sentences grouped "
+        "into 1 to 3 paragraphs.\n"
+        "- Write in English even when the question is in another language: a later step "
+        "translates the checked answer.\n"
         "- Every sentence states one claim and lists in `cites` the numbers of the passages "
         "that support it. Never write [n] markers in the text.\n"
         "- Use only what the passages say. Copy every number exactly as a passage writes it.\n"
