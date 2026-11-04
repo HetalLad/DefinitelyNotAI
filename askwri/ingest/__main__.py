@@ -6,11 +6,16 @@ import sys
 from pathlib import Path
 
 from askwri.ingest.chunks import Chunk
-from askwri.ingest.document import ingest_document
+from askwri.ingest.document import IngestResult, ingest_document
+from askwri.ingest.labels import DocumentLabels, catalog_row, sidecar_attributes
+from askwri.ingest.wri_site import WriSite
 
 
-def write_chunks(chunks: list[Chunk], out_dir: Path) -> None:
-    """Write each chunk as <doc_id>/<p..>.txt plus the .metadata.json sidecar Bedrock reads."""
+def write_chunks(chunks: list[Chunk], out_dir: Path, labels: DocumentLabels) -> None:
+    """Write each chunk as <doc_id>/<p..>.txt plus the .metadata.json sidecar Bedrock reads.
+
+    The document's filterable labels (topic, year, tags, link) go into every sidecar.
+    """
     for chunk in chunks:
         doc_dir = out_dir / chunk.doc_id
         doc_dir.mkdir(parents=True, exist_ok=True)
@@ -24,10 +29,21 @@ def write_chunks(chunks: list[Chunk], out_dir: Path) -> None:
             "section": chunk.section,
             "kind": chunk.kind,
             "quotable": chunk.quotable,
+            **sidecar_attributes(labels),
         }
         path.with_name(f"{path.name}.metadata.json").write_text(
             json.dumps({"metadataAttributes": attributes}, ensure_ascii=False), encoding="utf-8"
         )
+
+
+def write_catalog(results: list[IngestResult], out_dir: Path) -> None:
+    """Write catalog.json: one row per document, for counting and listing questions."""
+    # shortcut: local file - the catalog moves to S3 with the S3 ticket (#11)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    rows = [catalog_row(r.doc_id, r.pdf_file, r.labels) for r in results]
+    (out_dir / "catalog.json").write_text(
+        json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
 
 def main() -> int:
@@ -40,9 +56,11 @@ def main() -> int:
     parser.add_argument("--out", type=Path, required=True, help="folder for chunk files")
     args = parser.parse_args()
 
+    site = WriSite()
     failed = False
+    passed: list[IngestResult] = []
     for pdf in args.pdfs:
-        result = ingest_document(pdf)
+        result = ingest_document(pdf, site)
         for page in result.audit.pages_without_text:
             print(f"{pdf.name}: page {page} has no text layer", file=sys.stderr)
         if not result.audit.passed:
@@ -51,11 +69,14 @@ def main() -> int:
             for failure in result.audit.failures:
                 print(f"  {failure}", file=sys.stderr)
             continue
-        write_chunks(result.chunks, args.out)
+        write_chunks(result.chunks, args.out, result.labels)
+        passed.append(result)
         print(
             f"{pdf.name}: {len(result.chunks)} chunks, "
-            f"{len(result.audit.unquotable)} not quotable (re-ordered)"
+            f"{len(result.audit.unquotable)} not quotable (re-ordered); "
+            f"labels: {result.labels.label_source}"
         )
+    write_catalog(passed, args.out)
     return 1 if failed else 0
 
 

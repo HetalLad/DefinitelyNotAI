@@ -50,6 +50,16 @@ the citation audit checks every chunk against the PDF's own text layer:
   example diagram labels). It is written with `quotable: false`, so answers can cite its
   page but never quote it word for word.
 
+The command also looks each PDF up on wri.org (it needs internet access; there is no AWS
+setup). It finds the document's own WRI DOI in its suggested-citation block and resolves
+`doi.org/<doi>`; with no DOI, or a DOI whose page has a different title, it matches the PDF
+title against the wri.org sitemap. A page is used only if it answers 200 and its title
+matches. From that page the topic (mapped onto the 11 topics), WRI type, authors, publication
+date and tags are read, and the topic, year, type, tags and link go into every chunk's
+sidecar next to `label_source`. With no page, `label_source` is `no page` and a citation
+falls back to the stored PDF. `chunks/catalog.json` holds one row per document with its
+labels, link, DOI and label source.
+
 ## The rules
 
 - `main` is protected, so every change goes in through a pull request.
