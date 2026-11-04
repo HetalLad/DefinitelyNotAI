@@ -10,7 +10,6 @@ from askwri.models import ModelError
 log = logging.getLogger(__name__)
 
 PING_SECONDS = 15
-TERMINAL = {"answer", "decline", "error"}
 _DONE = object()
 
 
@@ -21,8 +20,7 @@ def stream_with_pings(
 
     CloudFront drops a stream after 30 idle seconds, and one model call or a cold Aurora query
     can take longer than 15. An exception ends the stream with one `error` event naming the
-    failed step, and is logged with its traceback. A stream that ends without an `answer`,
-    `decline` or `error` gets an `error`, so every run ends with exactly one of them.
+    failed step, and is logged with its traceback.
     """
     items: queue.Queue = queue.Queue()
 
@@ -46,8 +44,6 @@ def stream_with_pings(
             yield {"type": "ping"}
             continue
         if item is _DONE:
-            log.error("Answer stream ended without an answer, decline or error")
-            yield {"type": "error", "message": "Something went wrong"}
             return
         if isinstance(item, Exception):
             log.error("Answer failed during step %s", step, exc_info=item)
@@ -56,8 +52,6 @@ def stream_with_pings(
         if item["type"] == "step" and item["status"] == "now":
             step = item["id"]
         yield item
-        if item["type"] in TERMINAL:
-            return
 
 
 def error_message(error: Exception, step: str | None) -> str:
