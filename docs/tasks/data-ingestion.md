@@ -1,7 +1,7 @@
 # Ingestion tracer bullet: one text PDF becomes audited text chunks
 
 Owner: jayparmar16
-Status: in-progress
+Status: in-review
 Issue: #3 (spec: #2)
 
 ## Goal
@@ -13,21 +13,21 @@ sidecars to a local folder. Later tickets (#4–#13) build on this path.
 
 ## Done when
 
-- [ ] Python 3.12 project managed with uv and ruff, `pymupdf` pinned to an exact version,
+- [x] Python 3.12 project managed with uv and ruff, `pymupdf` pinned to an exact version,
       test suite runs; README says how to run the tests and the local ingest command.
-- [ ] Ingesting one document returns chunk records and an audit result; a local command
+- [x] Ingesting one document returns chunk records and an audit result; a local command
       writes chunk text files and metadata sidecars to an output folder.
-- [ ] Text chunks follow section boundaries and start with their address (document title ›
+- [x] Text chunks follow section boundaries and start with their address (document title ›
       section path). Each carries `chunk_id`, `doc_id`, `doc_title`, `pdf_page`, `section`,
       `kind` = `source_text`, and the exact text.
-- [ ] Chunk IDs are deterministic: two runs on the same PDF give identical IDs.
-- [ ] The audit checks every chunk (without its address prefix) against its claimed page in
+- [x] Chunk IDs are deterministic: two runs on the same PDF give identical IDs.
+- [x] The audit checks every chunk (without its address prefix) against its claimed page in
       PyMuPDF's plain-text layer, tolerating whitespace, hyphenation and ligature differences.
       A chunk whose words are all on its page but not in that order is kept and marked
       `quotable: false` (decided on this task; see Notes).
-- [ ] The audit fails loudly, naming document and chunk, for a passage whose words are not on
+- [x] The audit fails loudly, naming document and chunk, for a passage whose words are not on
       its page and for an empty or mostly non-text chunk. It reports pages with no text layer.
-- [ ] Tests use small synthetic PDFs built in the test suite (two columns, headings, a page
+- [x] Tests use small synthetic PDFs built in the test suite (two columns, headings, a page
       with no text layer); no corpus files in git.
 
 ## Notes
