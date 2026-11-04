@@ -1,4 +1,4 @@
-"""Command line: ingest PDFs and write chunks with Bedrock Knowledge Bases metadata sidecars."""
+"""Command line: ingest PDFs and write chunks with metadata sidecars."""
 
 import argparse
 import json
@@ -12,10 +12,10 @@ from askwri.ingest.wri_site import WriSite
 
 
 def write_chunks(chunks: list[Chunk], out_dir: Path) -> None:
-    """Write each chunk as <doc_id>/<p..>.txt plus the .metadata.json sidecar Bedrock reads.
+    """Write each chunk as <doc_id>/<p..>.txt plus a .metadata.json sidecar.
 
     The document's filterable labels (topic, year, tags, link) go into every sidecar; a label
-    the document lacks is left out, because Knowledge Bases metadata has no null.
+    the document lacks is left out. This format is replaced by JSON Lines chunk records (#11).
     """
     for chunk in chunks:
         doc_dir = out_dir / chunk.doc_id
@@ -24,6 +24,7 @@ def write_chunks(chunks: list[Chunk], out_dir: Path) -> None:
         path.write_text(chunk.indexed_text, encoding="utf-8")
         attributes = {
             "chunk_id": chunk.chunk_id,
+            "seq": chunk.seq,
             "doc_id": chunk.doc_id,
             "doc_title": chunk.doc_title,
             "pdf_page": chunk.pdf_page,
