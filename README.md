@@ -54,11 +54,12 @@ The command also looks each PDF up on wri.org (it needs internet access; there i
 setup). It finds the document's own WRI DOI in its suggested-citation block and resolves
 `doi.org/<doi>`; with no DOI, or a DOI whose page has a different title, it matches the PDF
 title against the wri.org sitemap. A page is used only if it answers 200 and its title
-matches. From that page the topic (mapped onto the 11 topics), WRI type, authors, publication
-date and tags are read, and the topic, year, type, tags and link are copied onto every
-chunk record (and its sidecar) next to `label_source`. With no page, `label_source` is
-`no page` and a citation falls back to the stored PDF. `chunks/catalog.json` holds one row
-per document with its labels, link, DOI and label source.
+matches. From that page the WRI type, authors, publication date (`wri_published`), tags and
+topic are read. The topic is `wri_topic` mapped onto the 11 topics, else the first tag that
+is one of them, else empty (never an error). The topic, year, type, tags and link are copied
+onto every chunk record (and its sidecar) next to `label_source`. With no page,
+`label_source` is `no page` and a citation falls back to the stored PDF.
+`chunks/catalog.json` holds one row per document with its labels, link, DOI and label source.
 
 ## Models
 

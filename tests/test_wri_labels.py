@@ -19,14 +19,11 @@ PAGE_URL = "https://www.wri.org/research/restoring-degraded-land-guide-landscape
 SITEMAP = "https://www.wri.org/sitemap.xml"
 
 
-def report_pdf(
-    path: Path, printed_doi: str | None = f"doi.org/{OWN_DOI}", printed_date: str = "June 2025"
-) -> Path:
+def report_pdf(path: Path, printed_doi: str | None = f"doi.org/{OWN_DOI}") -> Path:
     """A report whose body cites another WRI DOI before its own suggested-citation block."""
     doc = pymupdf.open()
     page = doc.new_page()
     page.insert_text((50, 70), TITLE, fontsize=22, fontname="hebo")
-    page.insert_text((50, 100), printed_date, fontsize=10)
     page.insert_textbox(
         pymupdf.Rect(50, 120, 550, 200),
         f"This builds on earlier work, see https://doi.org/{CITED_DOI} for the method.",
@@ -45,23 +42,25 @@ def report_pdf(
 def wri_page(
     title: str = FULL_TITLE,
     topic: str | None = "Equity &amp; Governance",
-    published: str = "2023-16-05",
-    long_date: str = "May 16 2023",
+    published: str | None = "2023-16-05",
+    long_date: str | None = "May 16 2023",
+    tags: tuple[str, ...] = ("land restoration", "Equity"),
 ) -> str:
     """The head of a wri.org research page, with the meta tags the pipeline reads."""
-    tags = [
+    tags_html = [
         f'<meta name="citation_title" content="{title}" />',
         '<meta name="wri_type" content="Research" />',
         '<meta name="citation_author" content="Jane Doe" />',
         '<meta name="citation_author" content="Ravi Rao" />',
-        f'<meta name="citation_publication_date" content="{published}" />',
-        f'<meta name="wri_published" content="{long_date}" />',
-        '<meta property="article:tag" content="land restoration" />',
-        '<meta property="article:tag" content="Equity" />',
+        *[f'<meta property="article:tag" content="{tag}" />' for tag in tags],
     ]
+    if published:
+        tags_html.append(f'<meta name="citation_publication_date" content="{published}" />')
+    if long_date:
+        tags_html.append(f'<meta name="wri_published" content="{long_date}" />')
     if topic:
-        tags.append(f'<meta name="wri_topic" content="{topic}" />')
-    return "<html><head>" + "".join(tags) + "</head><body></body></html>"
+        tags_html.append(f'<meta name="wri_topic" content="{topic}" />')
+    return "<html><head>" + "".join(tags_html) + "</head><body></body></html>"
 
 
 class FakeWeb:
@@ -135,46 +134,52 @@ def test_site_topics_map_onto_the_eleven_topics(tmp_path, site_topic, topic):
     assert labels.topic == topic
 
 
-def test_an_unmapped_site_topic_fails_loudly(tmp_path):
-    pdf = report_pdf(tmp_path / "r.pdf")
+@pytest.mark.parametrize(
+    ("site_topic", "tags", "topic", "kept_tags"),
+    [
+        ("Climate", ("Finance",), "Climate", ("Finance",)),  # the site topic wins over tags
+        (
+            None,
+            ("mitigation", "Climate", "Finance"),
+            "Climate",
+            ("mitigation", "Climate", "Finance"),
+        ),
+        ("Africa", ("Finance",), "Finance", ("Finance", "Africa")),  # off-list value kept as a tag
+        ("Africa", ("land use",), None, ("land use", "Africa")),
+        (None, ("land use",), None, ("land use",)),
+    ],
+)
+def test_the_topic_falls_back_to_a_tag_and_never_stops_the_run(
+    tmp_path, site_topic, tags, topic, kept_tags
+):
+    page = wri_page(topic=site_topic, tags=tags)
 
-    with pytest.raises(ValueError, match="Africa"):
-        label_document(pdf, TITLE, WriSite(web(wri_page(topic="Africa"))))
+    labels = label_document(report_pdf(tmp_path / "r.pdf"), TITLE, WriSite(web(page)))
 
-
-def test_a_page_without_a_topic_has_no_topic(tmp_path):
-    labels = label_document(
-        report_pdf(tmp_path / "r.pdf"), TITLE, WriSite(web(wri_page(topic=None)))
-    )
-
-    assert labels.topic is None
+    assert (labels.topic, labels.tags) == (topic, kept_tags)
     assert labels.label_source == "wri.org"
 
 
 @pytest.mark.parametrize(
-    ("published", "long_date", "printed", "expected"),
+    ("published", "long_date", "expected"),
     [
-        ("2023-16-05", "May 16 2023", "", "2023-05-16"),  # only year-day-month is possible
-        ("2024-09-12", "December 9 2024", "December 2024", "2024-12-09"),
-        ("2025-10-06", "June 10 2025", "June 2025", "2025-06-10"),  # PDF names the month
-        ("2025-10-06", "October 6 2025", "October 2025", "2025-10-06"),
-        ("2025-10-06", "June 10 2025", "2025", "2025-06-10"),  # PDF silent: page's own date
-        ("1988-01-01", "January 1 1988", "", "1988-01-01"),
+        ("2025-10-06", "June 10 2025", "2025-06-10"),  # wri_published wins over the stamp
+        ("2025-10-06", "October 6 2025", "2025-10-06"),
+        ("2023-16-05", None, "2023-05-16"),  # no wri_published: the stamp is year-day-month
+        ("2024-09-12", None, "2024-12-09"),
+        ("1988-01-01", None, "1988-01-01"),
+        (None, None, None),  # no date at all: left empty, no error
+        ("garbled", None, None),
     ],
 )
-def test_year_day_month_dates_are_normalised(tmp_path, published, long_date, printed, expected):
+def test_the_publication_date_comes_from_wri_published_else_the_stamp(
+    tmp_path, published, long_date, expected
+):
     page = wri_page(published=published, long_date=long_date)
-    pdf = report_pdf(tmp_path / "r.pdf", printed_date=printed)
 
-    assert label_document(pdf, TITLE, WriSite(web(page))).published == expected
+    labels = label_document(report_pdf(tmp_path / "r.pdf"), TITLE, WriSite(web(page)))
 
-
-def test_an_ambiguous_date_nothing_can_settle_fails_loudly(tmp_path):
-    page = wri_page(published="2025-10-06", long_date="")
-    pdf = report_pdf(tmp_path / "r.pdf", printed_date="2025")
-
-    with pytest.raises(ValueError, match="2025-10-06"):
-        label_document(pdf, TITLE, WriSite(web(page)))
+    assert labels.published == expected
 
 
 def test_without_a_doi_the_pdf_title_is_matched_against_the_sitemap(tmp_path):

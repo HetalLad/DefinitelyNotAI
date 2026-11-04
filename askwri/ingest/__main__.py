@@ -83,7 +83,7 @@ def main() -> int:
         print(
             f"{pdf.name}: {len(result.chunks)} chunks, "
             f"{len(result.audit.unquotable)} not quotable (re-ordered); "
-            f"labels: {result.labels.label_source}"
+            f"labels: {result.labels.label_source}, topic: {result.labels.topic or 'none'}"
         )
     write_catalog(passed, args.out)
     return 1 if failed else 0

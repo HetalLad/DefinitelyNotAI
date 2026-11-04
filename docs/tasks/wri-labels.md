@@ -18,10 +18,15 @@ resolves. Documents with no page cite the stored PDF, and the label source is re
       the wri.org sitemap's research and data pages. A page is accepted only when its title
       matches the PDF title.
 - [x] From the page's meta tags the pipeline reads `wri_topic` (main topic), `wri_type`,
-      `citation_author`, `citation_publication_date` and `article:tag` (secondary tags).
-- [x] `YYYY-DD-MM` dates are normalised, and ambiguous dates are checked against the PDF.
+      `citation_author`, `wri_published` / `citation_publication_date` and `article:tag`
+      (secondary tags).
+- [x] The publication date is `wri_published` (unambiguous); without it,
+      `citation_publication_date` is read as `YYYY-DD-MM`; with neither it is empty. No date
+      raises an error (decided with the user, replacing the ambiguous-date check).
 - [x] Site topic values map onto the 11 topics (for example `Equity & Governance` becomes
-      Equity), and an unmapped value fails loudly.
+      Equity). An empty or off-list `wri_topic` falls back to the first `article:tag` that is one of
+      the 11, else the topic stays empty. No topic stops the run (decided with the user,
+      replacing "fails loudly").
 - [x] The audit checks that each link resolves; with no page, the citation falls back to the
       stored PDF and the label source is recorded.
 - [x] One catalog row per document is produced, and the filterable fields are added to each
@@ -34,10 +39,12 @@ resolves. Documents with no page cite the stored PDF, and the label source is re
   200 on www.wri.org and its title matches, so a link that is stored has been seen to resolve.
   There is no second request. A DOI or sitemap URL that fails the check means "no page"
   (the PDF fallback), not an audit failure.
-- `citation_publication_date` was year-day-month on every research page sampled (45 random
-  pages plus 14 from DOIs), not "sometimes". Both readings are tried; a day over 12 settles
-  it, then the month and year printed in the PDF, then the page's own `wri_published`.
-- Some wri.org topics are not among the 11 (an old page has `Africa`). They raise.
+- `citation_publication_date` was year-day-month on every research page sampled (59 pages),
+  not "sometimes", and every sampled research page carries `wri_published`, so that is the
+  date used.
+- Some wri.org topics are not among the 11 (an old page has `Africa`). The value is kept as a
+  tag, the topic falls back to a tag that is one of the 11, and is empty if none is. The
+  labeler (#9) fills empty topics.
 
 ## Handoff
 

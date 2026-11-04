@@ -51,8 +51,8 @@ class DocumentLabels:
 def label_document(pdf_path: Path, title: str, site: WriSite | None) -> DocumentLabels:
     """Find the document's wri.org page and read its labels; without a page, say so.
 
-    With no site, nothing is looked up and the result is "no page". Raises ValueError for a
-    topic outside the 11 or a publication date that nothing can settle.
+    With no site, nothing is looked up and the result is "no page". A label the page lacks is
+    left empty, never an error.
     """
     front_text = _front_text(pdf_path)
     doi = own_doi(front_text)
@@ -71,17 +71,18 @@ def label_document(pdf_path: Path, title: str, site: WriSite | None) -> Document
             tags=(),
         )
     meta = page.meta
+    topic, tags = _topic_and_tags(meta)
     return DocumentLabels(
         label_source="wri.org",
         title=page.title,
         doi=doi,
         link=page.url,
         page_match=page.match,
-        topic=_topic(meta, page.url),
+        topic=topic,
         wri_type=_first(meta, "wri_type"),
         authors=tuple(meta.get("citation_author", [])),
-        published=_published(meta, front_text),
-        tags=tuple(meta.get("article:tag", [])),
+        published=_published(meta),
+        tags=tags,
     )
 
 
@@ -123,44 +124,35 @@ def _first(meta: dict[str, list[str]], key: str) -> str | None:
     return meta[key][0] if meta.get(key) else None
 
 
-def _topic(meta: dict[str, list[str]], url: str) -> str | None:
-    site_topic = _first(meta, "wri_topic")
-    if site_topic is None:
-        return None
-    try:
-        return SITE_TOPICS[html.unescape(site_topic)]
-    except KeyError:
-        raise ValueError(f"{url}: wri_topic {site_topic!r} is not one of the 11 topics") from None
+def _topic_and_tags(meta: dict[str, list[str]]) -> tuple[str | None, tuple[str, ...]]:
+    """The main topic and the secondary tags.
 
-
-def _published(meta: dict[str, list[str]], front_text: str) -> str | None:
-    """The publication date as YYYY-MM-DD.
-
-    The site writes `citation_publication_date` as YYYY-DD-MM. A day over 12 settles it. When
-    both readings are real dates, the one whose month and year the PDF prints wins; failing
-    that, the page's own `wri_published` ("June 10 2025") decides.
+    The topic is `wri_topic` when it maps onto the 11 topics, else the first `article:tag` that
+    is one of them, else None (the labeler of a later ticket fills it). An off-list
+    `wri_topic` such as the region "Africa" is kept as a tag.
     """
-    stamp = _first(meta, "citation_publication_date")
-    if stamp is None:
+    tags = list(meta.get("article:tag", []))
+    site_topic = html.unescape(_first(meta, "wri_topic") or "")
+    topic = SITE_TOPICS.get(site_topic)
+    if topic is None and site_topic and site_topic not in tags:
+        tags.append(site_topic)
+    if topic is None:
+        topic = next((SITE_TOPICS[tag] for tag in tags if tag in SITE_TOPICS), None)
+    return topic, tuple(tags)
+
+
+def _published(meta: dict[str, list[str]]) -> str | None:
+    """The publication date as YYYY-MM-DD, or None.
+
+    `wri_published` ("June 10 2025") is unambiguous. Without it, `citation_publication_date`
+    is read as YYYY-DD-MM, the format the site writes it in.
+    """
+    try:
+        if long_date := _first(meta, "wri_published"):
+            return datetime.strptime(long_date, "%B %d %Y").date().isoformat()
+        if stamp := _first(meta, "citation_publication_date"):
+            year, day, month = (int(part) for part in stamp.split("-"))
+            return date(year, month, day).isoformat()
+    except ValueError:
         return None
-    year, first, second = (int(part) for part in stamp.split("-"))
-    candidates: list[date] = []
-    for month, day in ((second, first), (first, second)):
-        try:
-            reading = date(year, month, day)
-        except ValueError:
-            continue
-        if reading not in candidates:
-            candidates.append(reading)
-    if len(candidates) > 1:
-        candidates = [d for d in candidates if _printed_in(d, front_text)] or candidates
-    if len(candidates) > 1 and (long_date := _first(meta, "wri_published")):
-        written = datetime.strptime(long_date, "%B %d %Y").date()
-        candidates = [d for d in candidates if d == written]
-    if len(candidates) != 1:
-        raise ValueError(f"publication date {stamp} is ambiguous and nothing settles it")
-    return candidates[0].isoformat()
-
-
-def _printed_in(day: date, front_text: str) -> bool:
-    return bool(re.search(rf"{day:%B}\W+(?:\d{{1,2}}\W+)?{day.year}", front_text, re.IGNORECASE))
+    return None
