@@ -21,7 +21,9 @@ class IngestResult:
 def ingest_document(pdf_path: Path) -> IngestResult:
     """Turn one PDF into chunks plus the audit result that decides whether they may be indexed."""
     parsed = parse_pdf(pdf_path)
-    chunks = build_chunks(doc_id_for(pdf_path), _title(parsed, pdf_path), parsed.blocks)
+    chunks = build_chunks(
+        doc_id_for(pdf_path), _title(parsed, pdf_path), parsed.blocks, parsed.printed_pages
+    )
     audit = audit_chunks(pdf_path, chunks)
     unquotable = set(audit.unquotable)
     chunks = [

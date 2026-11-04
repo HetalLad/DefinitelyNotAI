@@ -46,9 +46,20 @@ the citation audit checks every chunk against the PDF's own text layer:
 
 - **Blocked:** a chunk that is empty, garbled, or has words that aren't on its page. Nothing
   is written for that PDF, and the command exits with an error.
+- **Page ranges:** a chunk may run on across a page break when its section continues. It
+  records where it starts and ends (`pdf_page`, `pdf_page_end`), and the audit checks that its
+  first passage is on the first page and its last on the last.
 - **Not quotable:** a chunk whose words are all on its page, but in a different order (for
   example diagram labels). It is written with `quotable: false`, so answers can cite its
   page but never quote it word for word.
+
+Each sidecar carries two kinds of page number. `pdf_page` and `pdf_page_end` are numbers (the
+position in the file, for opening the PDF at the right page). `printed_page` and
+`printed_page_end` are the numbers printed on the pages, as text because front matter uses
+Roman numerals ("iv"). They come from the PDF's page labels where it has them, else from the
+page-header or page-footer text (a number counts only when at least two pages agree on the
+same offset from the PDF page). When neither exists, `printed_page` is the PDF page and
+`printed_page_fallback` is `true`. Page headers and footers never appear in chunk text.
 
 ## The rules
 

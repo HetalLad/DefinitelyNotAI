@@ -7,11 +7,13 @@ from pathlib import Path
 
 import pymupdf
 
+from askwri.ingest.pages import PrintedPage, printed_pages
 from askwri.ingest.text import comparable, missing_words
 
 # Layout classes that carry body text. Tables and pictures get their own chunk kinds later.
 TEXT_CLASSES = {"text", "list-item", "footnote", "formula", "caption"}
 HEADING_CLASSES = {"title", "section-header"}
+RUNNING_CLASSES = {"page-header", "page-footer"}  # kept out of chunks, read for page numbers
 
 
 @dataclass(frozen=True)
@@ -25,17 +27,21 @@ class Block:
 
 @dataclass(frozen=True)
 class ParsedPdf:
-    """What the chunker needs from a PDF: its metadata title and its blocks in reading order."""
+    """What the chunker needs from a PDF: its title, its blocks in reading order, its page numbers."""
 
     title: str
     blocks: list[Block]
+    printed_pages: list[PrintedPage]  # one per PDF page, in order
 
 
 def parse_pdf(path: Path) -> ParsedPdf:
     """Parse a PDF into text and heading blocks.
 
-    The layout model decides the regions, their classes and their reading order. Page headers,
-    footers, pictures and tables are skipped. OCR is off: a page without a text layer yields
+    The layout model decides the regions, their classes and their reading order. Page headers
+    and footers are kept out of the blocks and read for printed page numbers instead. The layout
+    model sometimes calls a running header "text" on one page while calling it a header on the
+    others, so body text equal to a header or footer seen anywhere in the document is dropped
+    too (digits ignored, so a lone page number counts). Pictures and tables are skipped. OCR is off: a page without a text layer yields
     no blocks, so every passage stays checkable against the PDF's own text.
     """
     with pymupdf.open(path) as doc:
@@ -43,10 +49,17 @@ def parse_pdf(path: Path) -> ParsedPdf:
             page_chunks=True, header=False, footer=False, use_ocr=False, show_progress=False
         )
         title = (doc.metadata or {}).get("title", "").strip()
-        blocks = []
+        blocks, region_texts = [], []
         for chunk in pages:
             page = doc[chunk["metadata"]["page_number"] - 1]
             page_text = page.get_text()
+            region_texts.append(
+                [
+                    layer_text(page, box["bbox"])
+                    for box in chunk["page_boxes"]
+                    if box["class"] in RUNNING_CLASSES
+                ]
+            )
             for box in sorted(chunk["page_boxes"], key=lambda box: box["index"]):
                 if box["class"] not in TEXT_CLASSES | HEADING_CLASSES:
                     continue
@@ -59,7 +72,10 @@ def parse_pdf(path: Path) -> ParsedPdf:
                 if box["class"] in HEADING_CLASSES:
                     level = len(markdown) - len(markdown.lstrip("#")) or 1
                 blocks.append(Block(page=page.number + 1, heading_level=level, text=text))
-    return ParsedPdf(title=title, blocks=blocks)
+        printed = printed_pages([page.get_label() for page in doc], region_texts)
+    running = {running_key(text) for texts in region_texts for text in texts}
+    blocks = [b for b in blocks if b.heading_level or running_key(b.text) not in running]
+    return ParsedPdf(title=title, blocks=blocks, printed_pages=printed)
 
 
 def region_text(
@@ -77,12 +93,22 @@ def region_text(
     page_run = comparable(page_text)
     if comparable(layout_text) in page_run:
         return layout_text
-    region = pymupdf.Rect(bbox) + (-2, -2, 2, 2)  # layout boxes can clip edge characters
-    layer_text = plain_text(page.get_text("text", clip=region, flags=pymupdf.TEXT_DEHYPHENATE))
-    complete = len(comparable(layer_text)) >= 0.95 * len(comparable(layout_text))
-    if complete and (comparable(layer_text) in page_run or missing_words(layout_text, page_text)):
-        return layer_text
+    from_layer = layer_text(page, bbox)
+    complete = len(comparable(from_layer)) >= 0.95 * len(comparable(layout_text))
+    if complete and (comparable(from_layer) in page_run or missing_words(layout_text, page_text)):
+        return from_layer
     return layout_text
+
+
+def running_key(text: str) -> str:
+    """The text without digits, so a footer reading "Report | 5" matches "Report | 7" on another page."""
+    return comparable(re.sub(r"\d+", "", text))
+
+
+def layer_text(page: pymupdf.Page, bbox: tuple[float, float, float, float]) -> str:
+    """The PDF text layer's text inside a layout box, as plain text."""
+    region = pymupdf.Rect(bbox) + (-2, -2, 2, 2)  # layout boxes can clip edge characters
+    return plain_text(page.get_text("text", clip=region, flags=pymupdf.TEXT_DEHYPHENATE))
 
 
 def plain_text(markdown: str) -> str:
