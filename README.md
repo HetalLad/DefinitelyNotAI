@@ -30,6 +30,26 @@ AWS hackathon.
 
 You can also just say it in plain words, e.g. "claim a task for PDF ingestion" or "open a PR".
 
+## Ingest PDFs locally
+
+The ingestion pipeline (spec: issue #2) turns WRI PDFs into audited, citable chunks.
+
+```sh
+uv sync                                   # install Python dependencies
+uv run pytest                             # run the tests
+uv run python -m askwri.ingest path/to/report.pdf --out chunks/
+```
+
+For each PDF the command writes one `.txt` file per chunk, plus the `.metadata.json` sidecar
+that Bedrock Knowledge Bases reads, under `chunks/<doc_id>/`. Before anything is written,
+the citation audit checks every chunk against the PDF's own text layer:
+
+- **Blocked:** a chunk that is empty, garbled, or has words that aren't on its page. Nothing
+  is written for that PDF, and the command exits with an error.
+- **Not quotable:** a chunk whose words are all on its page, but in a different order (for
+  example diagram labels). It is written with `quotable: false`, so answers can cite its
+  page but never quote it word for word.
+
 ## The rules
 
 - `main` is protected, so every change goes in through a pull request.

@@ -22,6 +22,10 @@ AGENTS.override.md
 .venv/
 .python-version
 
+# Corpus PDFs live in S3, not git (see AGENTS.md)
+/20*_publications/
+/20*_publications.zip
+
 # Build and tool caches
 __pycache__/
 *.pyc
