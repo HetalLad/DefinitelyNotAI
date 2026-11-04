@@ -68,9 +68,23 @@ title against the wri.org sitemap. A page is used only if it answers 200 and its
 matches. From that page the WRI type, authors, publication date (`wri_published`), tags and
 topic are read. The topic is `wri_topic` mapped onto the 11 topics, else the first tag that
 is one of them, else empty (never an error). The topic, year, type, tags and link are copied
-onto every chunk record (and its sidecar) next to `label_source`. With no page,
-`label_source` is `no page` and a citation falls back to the stored PDF.
+onto every chunk record (and its sidecar) next to `label_source`.
 `chunks/catalog.json` holds one row per document with its labels, link, DOI and label source.
+
+When the title from the PDF's metadata finds no page (it is often "HIGHLIGHTS" or a file
+name), the lookup is retried with the title quoted in the suggested-citation block.
+
+Where wri.org has no labels, the `labeler` model (see Models) fills them in. It reads only the
+first pages as text and returns structured output, with the topic limited to the 11 topics or
+`none` (any other value fails the document). It never overwrites a label wri.org has.
+
+- **No page:** the model gives the title, date, document type, topic, countries and a short
+  summary; an RFP also gets `rfp_country` and `deadline`. `label_source` is `model`.
+- **Page without a usable topic:** the model gives only the topic. `label_source` stays
+  `wri.org`, and the catalog's `topic_source` is `model`.
+
+Ingesting therefore needs Bedrock access to the `labeler` model and a region (`AWS_DEFAULT_REGION`,
+see Models). A refused or failed model call fails that document with an error naming it.
 
 ## Models
 
